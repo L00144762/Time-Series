@@ -63,63 +63,118 @@ ndiffs(Nile)
 
 #There is a trend in the data, so the series is differenced once (lag = 1)
 #  zero is good for AREMA
+# value of 1 is returned. need to lag it by 1; there's something in the time series
+# that needs to be removed. this number indicates that the data contains a trend
+# so the time series is differenced once (lag = 1)
 diff_Nile <- diff(Nile, lag = 1)
 ndiffs(diff_Nile)
 
 # Show both charts side-by-side for comparison
+
 default_settings <- par(no.readonly = TRUE)
-par(mfrow = c(1,1))
+#1 row x 2 column
+par(mfrow = c(1,2))
 plot(Nile)
 plot(diff_Nile)
-par(default_settings)
+
+# we'll asses whether there's a presence of a trend
+# in the differenced time series
+ndiffs(diff_Nile)
+
+#we're sure there isn't a trend in the time series
+# apply the ADF test to the differenced time series
+
 
 adf.test(diff_Nile)
 
+# p-value is smaller than the cut off
+# therefore results show that the time series is now stationary
+# so we van proceed to the next step
+# H0 =data needs to be stationary; p < 0.05 therefore is doesn't need to be differenced
 
-# Identifying one or more models, we need to examine auto-correlation 
-# and partial auto-correlation plotsfor the differenced Nile time series
+
+# Identifying one or more reasonable models; we need to examine auto-correlation 
+# and partial auto-correlation plots for the differenced Nile time series
+# ACF & PACF plots for forecast
 
 
-Acf(diff_Nile, main =  "auto-correlation plot for differenced Nile time series",
-    )
+Acf(diff_Nile, main =  "auto-correlation plot for differenced Nile time series")
 #partial auto-correlation plot
-Pacf(diff_Nile, main =  "partial auto-correlation plot for differenced Nile time series",
-)
+Pacf(diff_Nile, main =  "partial auto-correlation plot for differenced Nile time series")
+# if none of the points cross the blue line by a lot then run auto arima
+# acf and pacf are "manual" ways of testing 
+# which ever is well past the blue line in acf plot, this is the p-value of arima model
+# in this case it's 1 because the value a 1 on the x-axis shoots way over the blue line
+# pacf gives q-value which is also 1.
 
 # We use the original datast for the ARIMA model
 # and modify the d value to suit our earlier findings
 # and d = 1
-arima_model <- Arima(Nile, order = c(0,1,1))
+# we apply the model to our original time series
+
+#using 0,1,1 to see what it's like, even tho we have a strong indication it should be 1,1,1
+
+arima_model <- Arima(Nile, order = c(0,1,1)) #p, d, q
+
 arima_model
-# Accuracy measures using the MAPE
+
+
+# Accuracy measures using the MAPE (mean absolute percentage error)
 # measures prediction of accuracy
 
 accuracy(arima_model)
 
+# MAPE has a value of 12.935, meaning there's a chacne that the values this model creates
+# could be 13% wrong
+# there is a forecast error of 13% in this ARIMA model, with p, d, q values of 0,1,1
+
+#QQnorm produces a normal qq plot of the values in y
+# adding a qqline shows us the theoretical quantile-quantile plot
+# this line passes through the 1st and 3rd probability quartiles
+
 qqnorm(arima_model$residuals)
 qqline(arima_model$residuals)
 
-# box test function provides a tetst that autocorrelates
-# are all 0 (null hypothesis)
+# To examine whether the data and the model will fit well or not
+# Prove that the auto-correlations are zero
+# using the box.test() function
+# H0 = all values are zero
+
 Box.test(arima_model$residuals, type = "Ljung-Box")
 
+# p > 0.05; shows the model appears to fit the data well 
+
 # Forecast 3 years ahead for the Nile time series
+# 3 indicates number of years to forecast
 forecast(arima_model, 3)
 
+# Plot the time series prediction
+# This shows the forecast and the 80% and 95% confidence bands
 plot(forecast(arima_model, 3), 
      xlab = "Year", 
      ylab = "Annual Flow")
 
-# doesnt seem to be much, should maybe change model (in notes - e.g. Arima(1,1,1)) or use auto arima and see
+# Using the auto arima function
 
-auto_arima <- auto.arima(Nile)
-auto_arima
-accuracy(auto_arima)
+auto_arima_model <- auto.arima(Nile)
+auto_arima_model
 
+# auto-arima is saying to use p, d, q values of 1,1,1
+# Compare accuracy of the models(manual and auto)
+accuracy(arima_model)
+accuracy(auto_arima_model)
 qqnorm(auto_arima$residuals)
 qqline(auto_arima$residuals)
 
-plot(forecast(auto_arima, 3),
-     xlab = "Year",
+qqnorm(arima_model$residuals)
+qqline(arima_model$residuals)
+
+Box.test(auto_arima_model$residuals, type = "Ljung-Box")
+# p value is 0.7 which is a lot better thant the 0.2 value of the first model tested
+
+plot(forecast(arima_model, 5), 
+     xlab = "Year", 
      ylab = "Annual Flow")
 
+#  this is only based on past information and arima only concentrates on the top 3rd of the data
+# look at data trend and decide to use arima or a different time series or even regression
